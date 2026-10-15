@@ -1,0 +1,256 @@
+<title>현장 위치 스탬프</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&family=JetBrains+Mono:wght@600;800&display=swap">
+<style>
+/* Layout: one-column field tool — preview on top, stamp text + big shutter below, thumb-reachable */
+:root{
+  --bg:#eef0ec; --surface:#ffffff; --fg:#1d211c; --muted:#5d665a;
+  --line:#cfd5cb; --accent:#f2b705; --accent-ink:#1d211c; --ok:#2f7d32; --err:#b3261e;
+  --f-body:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141713; --surface:#1e221d; --fg:#eceee9; --muted:#9aa396; --line:#353b33;
+  --accent:#f2b705; --accent-ink:#141713; --ok:#7cc47f; --err:#f2948b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141713; --surface:#1e221d; --fg:#eceee9; --muted:#9aa396; --line:#353b33;
+  --accent:#f2b705; --accent-ink:#141713; --ok:#7cc47f; --err:#f2948b; color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html,body{background:var(--bg);overflow-x:hidden}
+body{margin:0;color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 28px}
+.wrap{width:100%;max-width:560px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.wrap>*{min-width:0}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 8px}
+h1{font-size:19px;margin:0;font-weight:700;text-wrap:balance}
+.tag{font-size:12px;letter-spacing:.06em;color:var(--muted)}
+.preview{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.preview canvas{display:block;width:100%;max-width:100%;height:auto}
+.badge{position:absolute;top:8px;left:8px;font-size:12px;background:var(--fg);color:var(--bg);padding:2px 8px;border-radius:4px}
+label.lbl{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.04em}
+.stampbox{display:grid;gap:8px}
+.row{display:flex;gap:8px;align-items:stretch}
+textarea{flex:1;min-width:0;width:100%;font-family:var(--f-mono);font-weight:800;font-size:24px;line-height:1.25;
+  padding:10px 12px;border:2px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);resize:none}
+textarea:focus{outline:none;border-color:var(--accent)}
+.steppers{flex:0 0 auto;display:grid;gap:6px;grid-template-rows:1fr 1fr}
+.step{width:58px;font-size:26px;font-weight:700;border:2px solid var(--line);background:var(--surface);color:var(--fg);border-radius:8px;cursor:pointer}
+.step:active{background:var(--line)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-family:var(--f-mono);font-weight:600;font-size:14px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;white-space:pre}
+.opts{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:14px;align-items:center}
+.opts select{font:inherit;padding:4px 6px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
+.opts input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);vertical-align:-3px}
+.actions{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.actions .btn{min-width:0}
+.btn{font:inherit;font-weight:700;font-size:18px;padding:16px 10px;border-radius:10px;border:2px solid var(--fg);background:var(--surface);color:var(--fg);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn:focus-visible,.step:focus-visible,.chip:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.status{font-size:14px;min-height:20px}
+.status.ok{color:var(--ok)} .status.err{color:var(--err)}
+.help{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
+.help p{margin:4px 0}
+#file{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.fallback img{width:100%;border-radius:8px;border:1px solid var(--line)}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>현장 위치 스탬프</h1>
+    <span class="tag">촬영 → 자동 표기 → 저장</span>
+  </header>
+
+  <div class="preview">
+    <canvas id="cv" width="1200" height="900" aria-label="미리보기"></canvas>
+    <span class="badge" id="badge">예시 화면</span>
+  </div>
+
+  <div class="stampbox">
+    <label class="lbl" for="txt">찍힐 글자 (그대로 유지됨)</label>
+    <div class="row">
+      <textarea id="txt" rows="2" spellcheck="false" autocomplete="off">B1F - 1</textarea>
+      <div class="steppers">
+        <button class="step" id="plus" aria-label="마지막 숫자 +1">+</button>
+        <button class="step" id="minus" aria-label="마지막 숫자 −1">−</button>
+      </div>
+    </div>
+    <div class="chips" id="chips" aria-label="최근 사용"></div>
+    <div class="opts">
+      <label for="pos">위치
+        <select id="pos">
+          <option value="br">오른쪽 아래</option><option value="bl">왼쪽 아래</option>
+          <option value="tr">오른쪽 위</option><option value="tl">왼쪽 위</option>
+        </select></label>
+      <label for="size">크기
+        <select id="size"><option value="0.035">작게</option><option value="0.05" selected>보통</option><option value="0.07">크게</option></select></label>
+      <label for="date"><input type="checkbox" id="date"> 날짜·시간</label>
+      <label for="orig"><input type="checkbox" id="orig"> 원본도 저장</label>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn primary" id="shoot">📷 촬영 + 저장</button>
+    <button class="btn" id="save" disabled>다시 저장</button>
+  </div>
+  <div class="status" id="status" role="status"></div>
+  <div class="fallback" id="fallback" hidden>
+    <p class="help">저장 버튼이 안 되는 환경입니다. 아래 사진을 길게 눌러 저장하세요.</p>
+    <img id="fbimg" alt="글자가 찍힌 사진">
+  </div>
+
+  <input type="file" id="file" accept="image/*" capture="environment">
+
+  <div class="help">
+    <p>촬영하면 글자가 찍힌 사진이 바로 저장됩니다. 글자를 고친 뒤 '다시 저장'을 누르면 같은 사진을 새 글자로 한 장 더 저장합니다.</p>
+    <p>+ / − 는 글자의 마지막 숫자만 바꿉니다. (B1F - 1 → B1F - 2)</p>
+    <p>글자 없는 사진이 필요하면 '원본도 저장'을 켜두세요. 두 파일이 따로 저장됩니다.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const cv=$('cv'), ctx=cv.getContext('2d');
+  const txt=$('txt'), statusEl=$('status');
+  let photo=null, photoFile=null, shotAt=null, downloads=null;
+
+  const store={get(k,d){try{const v=localStorage.getItem('stamp:'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+               set(k,v){try{localStorage.setItem('stamp:'+k,JSON.stringify(v))}catch(e){}}};
+
+  txt.value=store.get('text','B1F - 1');
+  $('pos').value=store.get('pos','br'); $('size').value=store.get('size','0.05');
+  $('date').checked=store.get('date',false); $('orig').checked=store.get('orig',false);
+
+  function fitRows(){txt.rows=Math.max(1,Math.min(4,txt.value.split('\n').length))}
+  fitRows();
+
+  function setStatus(m,cls){statusEl.textContent=m;statusEl.className='status '+(cls||'')}
+
+  function stampLines(){
+    const lines=txt.value.split('\n').map(s=>s.trimEnd()).filter(s=>s.length);
+    if($('date').checked){
+      const d=shotAt||new Date(),p=n=>String(n).padStart(2,'0');
+      lines.push(`${d.getFullYear()}.${p(d.getMonth()+1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`);
+    }
+    return lines;
+  }
+
+  function drawSample(w,h){
+    const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,'#8a8f86');g.addColorStop(1,'#5f645c');
+    ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+    ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=3;
+    for(let x=0;x<w;x+=150){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke()}
+    for(let y=0;y<h;y+=150){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
+  }
+
+  function render(){
+    if(photo){cv.width=photo.width;cv.height=photo.height;ctx.drawImage(photo,0,0)}
+    else{cv.width=1200;cv.height=900;drawSample(1200,900)}
+    const lines=stampLines(); if(!lines.length) return;
+    const W=cv.width,H=cv.height,short=Math.min(W,H);
+    const fs=Math.round(short*parseFloat($('size').value));
+    ctx.font=`800 ${fs}px "JetBrains Mono","IBM Plex Sans KR",monospace`;
+    ctx.textBaseline='top';
+    const pad=Math.round(fs*.45), lh=Math.round(fs*1.2), margin=Math.round(short*.025);
+    const tw=Math.max(...lines.map(l=>ctx.measureText(l).width));
+    const bw=Math.ceil(tw+pad*2), bh=lh*lines.length+pad*2-(lh-fs);
+    const pos=$('pos').value;
+    const x=pos[1]==='r'?W-bw-margin:margin, y=pos[0]==='b'?H-bh-margin:margin;
+    ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(x,y,bw,bh);
+    ctx.fillStyle='#ffffff';
+    lines.forEach((l,i)=>{const lx=pos[1]==='r'?x+bw-pad-ctx.measureText(l).width:x+pad;ctx.fillText(l,lx,y+pad+i*lh)});
+  }
+
+  function bump(d){
+    const v=txt.value, m=v.match(/(\d+)(?!.*\d)/s);
+    if(!m) return;
+    const i=v.lastIndexOf(m[1]); const n=Math.max(0,parseInt(m[1],10)+d);
+    txt.value=v.slice(0,i)+n+v.slice(i+m[1].length);
+    onText();
+  }
+  function onText(){store.set('text',txt.value);fitRows();render()}
+
+  function renderChips(){
+    const box=$('chips');box.textContent='';
+    store.get('recent',[]).forEach(t=>{
+      const b=document.createElement('button');b.className='chip';b.textContent=t;
+      b.onclick=()=>{txt.value=t;onText()};box.appendChild(b);
+    });
+  }
+  function remember(t){
+    t=t.trim(); if(!t) return;
+    const r=store.get('recent',[]).filter(x=>x!==t); r.unshift(t); store.set('recent',r.slice(0,6)); renderChips();
+  }
+
+  async function loadImage(file){
+    try{return await createImageBitmap(file,{imageOrientation:'from-image'})}
+    catch(e){return await new Promise((res,rej)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=u})}
+  }
+
+  function fname(suffix){
+    const d=shotAt||new Date(),p=n=>String(n).padStart(2,'0');
+    const tag=txt.value.split('\n')[0].replace(/[\\/:*?"<>|\s]+/g,'').slice(0,30)||'photo';
+    return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}_${tag}${suffix}.jpg`;
+  }
+
+  function toBlob(){return new Promise(r=>cv.toBlob(r,'image/jpeg',0.92))}
+
+  $('shoot').onclick=()=>$('file').click();
+  $('file').onchange=async e=>{
+    const f=e.target.files&&e.target.files[0]; e.target.value='';
+    if(!f) return;
+    try{
+      photo=await loadImage(f); photoFile=f; shotAt=new Date();
+      $('badge').hidden=false; $('badge').textContent='방금 촬영'; $('fallback').hidden=true;
+      render();
+    }catch(err){setStatus('사진을 불러오지 못했습니다. 다시 촬영해 주세요.','err');return}
+    saveAll();
+  };
+  $('save').onclick=()=>saveAll();
+
+  // 일반 브라우저(파일로 열었을 때)는 바로 다운로드, Claude 앱 안에서는 저장 확인창 사용
+  async function saveOne(name,data){
+    if(downloads) return downloads.save({filename:name,data});
+    const u=URL.createObjectURL(data), a=document.createElement('a');
+    a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(u),4000);
+  }
+
+  async function saveAll(){
+    if(!photo) return;
+    render(); const blob=await toBlob(); remember(txt.value);
+    $('save').disabled=true; setStatus('저장 중…');
+    try{
+      await saveOne(fname(''),blob);
+      if($('orig').checked&&photoFile){
+        if(!downloads) await new Promise(r=>setTimeout(r,1200));
+        const ext=(photoFile.name.match(/\.(jpe?g|png|webp)$/i)||['.jpg'])[0].toLowerCase();
+        await saveOne(fname('_원본').replace(/\.jpg$/,ext),photoFile);
+      }
+      setStatus(`저장했습니다 (${txt.value.split('\n')[0]}). 다음 사진을 촬영하세요.`,'ok');
+      $('save').disabled=false;
+    }catch(err){
+      $('save').disabled=false;
+      if(err&&err.code==='declined') setStatus('저장을 취소했습니다. 다시 저장을 누르면 저장됩니다.');
+      else if(err&&err.code==='rate_limited') setStatus('잠시 후 다시 저장을 눌러주세요.','err');
+      else{ $('fbimg').src=URL.createObjectURL(blob); $('fallback').hidden=false; setStatus('저장에 실패했습니다. 아래 사진을 길게 눌러 저장하세요.','err') }
+    }
+  }
+
+  txt.addEventListener('input',onText);
+  $('plus').onclick=()=>bump(1); $('minus').onclick=()=>bump(-1);
+  ['pos','size','date','orig'].forEach(id=>$(id).addEventListener('change',()=>{
+    const el=$(id); store.set(id,el.type==='checkbox'?el.checked:el.value); render();
+  }));
+
+  renderChips();
+  (document.fonts?document.fonts.ready:Promise.resolve()).then(render); render();
+
+  if(window.claude&&window.claude.use){
+    window.claude.use('downloads').then(d=>{downloads=d}).catch(()=>{});
+  }
+})();
+</script>
